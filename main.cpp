@@ -79,7 +79,7 @@ void serialGaussianBlur(unsigned char *in, unsigned char *out, const int rows, c
         for (int col = 0; col < cols; col++){
             int offset = row*cols + col;
 
-            /*
+            
             float blur_value = 0;
 
             // calculate gaussian blur from filter
@@ -103,9 +103,9 @@ void serialGaussianBlur(unsigned char *in, unsigned char *out, const int rows, c
                 }
             }
             out[offset] = (unsigned char)blur_value;
-            */
+            
 
-            out[offset] = (unsigned char)in[offset];
+            //out[offset] = (unsigned char)in[offset];
         }
     }
 }
