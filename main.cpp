@@ -146,35 +146,25 @@ void serial_gauss_blur(uchar4* imrgba, uchar4 *oimrgba, size_t rows, size_t cols
     serialSeparateChannels(imrgba, red, green, blue, rows, cols);
     auto serial_end = std::chrono::steady_clock::now();
     std::chrono::duration<double> serial_elapsed_seconds = serial_end-serial_start;
-    std::cout << "serial elapsed time: Separate Channels: " << serial_elapsed_seconds.count()*(1e+6) << "us\n";
+    std::cout << "serial elapsed time: Separate Channels: " << serial_elapsed_seconds.count()*(1e+6) << " us\n";
 
     // gauss r
     serial_start = std::chrono::steady_clock::now();
     serialGaussianBlur(red, rblurred, rows, cols, filter, filterWidth);
-    serial_end = std::chrono::steady_clock::now();
-    serial_elapsed_seconds = serial_end-serial_start;
-    std::cout << "serial elapsed time: Gaussian Blur R:  " << serial_elapsed_seconds.count()*(1e+6) << "us\n";
-
     // g
-    serial_start = std::chrono::steady_clock::now();
     serialGaussianBlur(green, gblurred, rows, cols, filter, filterWidth);
-    serial_end = std::chrono::steady_clock::now();
-    serial_elapsed_seconds = serial_end-serial_start;
-    std::cout << "serial elapsed time: Gaussian Blur G:  " << serial_elapsed_seconds.count()*(1e+6) << "us\n";
-
     //b
-    serial_start = std::chrono::steady_clock::now();
     serialGaussianBlur(blue, bblurred, rows, cols, filter, filterWidth);
     serial_end = std::chrono::steady_clock::now();
     serial_elapsed_seconds = serial_end-serial_start;
-    std::cout << "serial elapsed time: Gaussian Blur B:  " << serial_elapsed_seconds.count()*(1e+6) << "us\n";
+    std::cout << "serial elapsed time: Avg. Gaussian Blur:  " << (serial_elapsed_seconds.count()/3)*(1e+6) << " us\n";
     
     // gather
     serial_start = std::chrono::steady_clock::now();
     serialRecombineChannels(rblurred, gblurred, bblurred, oimrgba, rows, cols);
     serial_end = std::chrono::steady_clock::now();
     serial_elapsed_seconds = serial_end-serial_start;
-    std::cout << "serial elapsed time: Gather Channels:  " << serial_elapsed_seconds.count()*(1e+6) << "us\n";
+    std::cout << "serial elapsed time: Gather Channels:  " << serial_elapsed_seconds.count()*(1e+6) << " us\n";
 
 }
 
@@ -234,11 +224,8 @@ int main(int argc, char const *argv[]){
 
     const size_t numPixels = img.rows * img.cols;
 
-    //h_in_img = (uchar4 *)imrgba.ptr<unsigned char>(0); // pointer to input image
     h_in_img = imrgba.ptr<uchar4>(0);
-    //h_o_img = (uchar4 *)imrgba.ptr<unsigned char>(0);  // pointer to output image
     h_o_img = (uchar4 *)o_img.ptr<unsigned char>(0);
-    //r_o_img = (uchar4 *)imrgba.ptr<unsigned char>(0);  // pointer to reference output image
     r_o_img = (uchar4 *)ro_img.ptr<unsigned char>(0);
 
     // below added by me
@@ -268,12 +255,12 @@ int main(int argc, char const *argv[]){
     checkCudaErrors(cudaMalloc((void**)&d_blue_blurred, sizeof(unsigned char)*numPixels));
     checkCudaErrors(cudaMalloc((void**)&d_filter, sizeof(float)*fWidth*fWidth));
     
-    //checkCudaErrors(cudaMemcpy(d_in_img, h_imrgba, sizeof(uchar4)*numPixels, cudaMemcpyHostToDevice));
     checkCudaErrors(cudaMemcpy(d_in_img, h_in_img, sizeof(uchar4)*numPixels, cudaMemcpyHostToDevice));
     checkCudaErrors(cudaMemcpy(d_filter, h_filter, sizeof(float)*fWidth*fWidth, cudaMemcpyHostToDevice));
 
     // kernel launch code
-    your_gauss_blur(d_in_img, d_o_img, img.rows, img.cols, d_red, d_green, d_blue, d_red_blurred, d_green_blurred, d_blue_blurred, d_filter, fWidth);
+    //your_gauss_blur(d_in_img, d_o_img, img.rows, img.cols, d_red, d_green, d_blue, d_red_blurred, d_green_blurred, d_blue_blurred, d_filter, fWidth);
+    your_gauss_blur_shared(d_in_img, d_o_img, img.rows, img.cols, d_red, d_green, d_blue, d_red_blurred, d_green_blurred, d_blue_blurred, d_filter, fWidth);
 
     cudaDeviceSynchronize();
     checkCudaErrors(cudaGetLastError());
@@ -302,7 +289,6 @@ int main(int argc, char const *argv[]){
     }
 
     // check if the caclulation was correct to a degree of tolerance
-
     checkResult(reference, outfile, 1e-5);
 
     // free any necessary memory.

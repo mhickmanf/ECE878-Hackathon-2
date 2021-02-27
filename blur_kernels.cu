@@ -85,10 +85,6 @@ void gaussianBlur_shared(unsigned char *d_in, unsigned char *d_out,
       local_in[shared_offset] = 0.0;
     }
 
-  }
-  //__syncthreads();
-
-  if (global_col < cols && global_row < rows){
 
     // CASE 2: UPPER RIGHT CORNER
     x = global_col + filterRadius;
@@ -98,11 +94,7 @@ void gaussianBlur_shared(unsigned char *d_in, unsigned char *d_out,
       shared_offset = (shared_row - filterRadius) * TILE_WIDTH + (shared_col + filterRadius);
       local_in[shared_offset] = d_in[global_offset];
     }
-  }
 
-  //__syncthreads();
-
-  if (global_col < cols && global_row < rows){
 
     // CASE 3: LOWER LEFT CORNER
     x = global_col - filterRadius;
@@ -113,11 +105,7 @@ void gaussianBlur_shared(unsigned char *d_in, unsigned char *d_out,
       shared_offset = (shared_row + filterRadius) * TILE_WIDTH + (shared_col - filterRadius);
       local_in[shared_offset] = d_in[global_offset];
     }
-  }
 
-  //__syncthreads();
-
-  if (global_col < cols && global_row < rows){
     // CASE 4: LOWER RIGHT CORNER
     x = global_col + filterRadius;
     y = global_row + filterRadius;
@@ -128,24 +116,10 @@ void gaussianBlur_shared(unsigned char *d_in, unsigned char *d_out,
       local_in[shared_offset] = d_in[global_offset];
     }
   }
-  /*
-  __syncthreads();
-  if (global_col < cols && global_row < rows){
-    // CASE: ITSELF
-    x = global_col;
-    y = global_row;
-    global_offset = y*cols + x;
-    if(global_offset >= 0 && global_offset < cols*rows){ 
-      shared_offset = (shared_row) * TILE_WIDTH + (shared_col);
-      local_in[shared_offset] = d_in[global_offset];
-    }
-  }
-  */
   __syncthreads(); // Memory Finished Loading
 
 
   // Do the blur
-
   float blur_value = 0;
   int filter_offset = 0;
 
@@ -153,17 +127,10 @@ void gaussianBlur_shared(unsigned char *d_in, unsigned char *d_out,
     for (int j = -filterRadius; j <= filterRadius; j++){
 
       shared_offset = (shared_row + i) * TILE_WIDTH + (shared_col + j);
-      //shared_offset = (shared_row + i) * cols + (shared_col + j);
 
       // check bounds
       if ((filter_offset >=0) && (filter_offset<filterWidth*filterWidth) && ((global_row + i) < rows) && ((global_col + j) < cols) && ((global_row + i) >= 0) && ((global_col + j) >= 0) && (shared_offset >= 0) && (shared_offset < TILE_WIDTH*TILE_WIDTH) && (shared_row+i<TILE_WIDTH) && (shared_col+j<TILE_WIDTH) && (shared_row+i >= 0) && (shared_col+j >= 0)){
-
-        //int pixel_offset = i*cols + j;
-
-        //float pixel_value = (float)in[pixel_offset];
-        //float pixel_value = (float)local_in[pixel_offset];
         float pixel_value = (float)local_in[shared_offset];
-
 
         // get filter pixel
         float filter_value = d_filter[filter_offset];                        
@@ -179,116 +146,10 @@ void gaussianBlur_shared(unsigned char *d_in, unsigned char *d_out,
 
   if (global_col < cols && global_row < rows){
     shared_offset = (shared_row) * TILE_WIDTH + (shared_col);
-    //d_out[global_row * cols + global_col] = (unsigned char)local_in[shared_offset];
     d_out[global_row * cols + global_col] = (unsigned char)blur_value;
   }
 }
 
-
-
-/*
-__global__ 
-void gaussianBlur_shared(unsigned char *d_in, unsigned char *d_out, 
-        const int rows, const int cols, float *d_filter, const int filterWidth){
-  int filterRadius = (filterWidth-1)/2;
-  //shared memory array
-  __shared__ unsigned char local_in[TILE_WIDTH * TILE_WIDTH];
-  
-  // global data id
-  int global_col=blockIdx.x*blockDim.x+threadIdx.x;
-  int global_row=blockIdx.y*blockDim.y+threadIdx.y;
-  int global_offset;
-  // thread block id
-  int local_col = threadIdx.x;
-  int local_row = threadIdx.y;
-  // shifted shared data id
-  int shared_col = local_col + filterRadius;
-  int shared_row = local_row + filterRadius;
-  int shared_offset;
-  // load global data into shared memory
-  int x,y;
-  if (global_col < cols && global_row < rows){
-    // CASE 1: UPPER LEFT CORNER
-    x = global_col - filterRadius;
-    y = global_row - filterRadius;
-    
-    global_offset = y*cols + x;
-    if(global_offset >= 0 && global_offset < cols*rows){
-      shared_offset = (shared_row - filterRadius) * TILE_WIDTH + (shared_col - filterRadius);
-      local_in[shared_offset] = d_in[global_offset];
-    } else{
-      shared_offset = (shared_row - filterRadius) * TILE_WIDTH + (shared_col - filterRadius);
-      local_in[shared_offset] = 0.0;
-    }
-  }
-  __syncthreads();
-  if (global_col < cols && global_row < rows){
-    // CASE 2: UPPER RIGHT CORNER
-    x = global_col + filterRadius;
-    y = global_row - filterRadius;
-    global_offset = y*cols + x;
-    if(global_offset >= 0 && global_offset < cols*rows){
-      shared_offset = (shared_row - filterRadius) * TILE_WIDTH + (shared_col + filterRadius);
-      local_in[shared_offset] = d_in[global_offset];
-    }
-  }
-  __syncthreads();
-  if (global_col < cols && global_row < rows){
-    // CASE 3: LOWER LEFT CORNER
-    x = global_col - filterRadius;
-    y = global_row + filterRadius;
-    global_offset = y*cols + x;
-    if(global_offset >= 0 && global_offset < cols*rows){
-      shared_offset = (shared_row + filterRadius) * TILE_WIDTH + (shared_col - filterRadius);
-      local_in[shared_offset] = d_in[global_offset];
-    }
-  }
-  __syncthreads();
-  if (global_col < cols && global_row < rows){
-    // CASE 4: LOWER RIGHT CORNER
-    x = global_col + filterRadius;
-    y = global_row + filterRadius;
-    global_offset = y*cols + x;
-    if(global_offset >= 0 && global_offset < cols*rows){  
-      shared_offset = (shared_row + filterRadius) * TILE_WIDTH + (shared_col + filterRadius);
-      local_in[shared_offset] = d_in[global_offset];
-    }
-  }
-  __syncthreads();
-  if (global_col < cols && global_row < rows){
-    // CASE: ITSELF
-    x = global_col;
-    y = global_row;
-    global_offset = y*cols + x;
-    if(global_offset >= 0 && global_offset < cols*rows){ 
-      shared_offset = (shared_row) * TILE_WIDTH + (shared_col);
-      local_in[shared_offset] = d_in[global_offset];
-    }
-  }
-  __syncthreads(); // Memory Finished Loading
-  int row_offset, col_offset;
-  float blur_value = 0;
-  int filter_offset = 0;
-  if (global_col < cols && global_row < rows){
-    
-    for (row_offset = -filterRadius; row_offset <= filterRadius; row_offset++){
-      for (col_offset = -filterRadius; col_offset <= filterRadius; col_offset++){
-        shared_offset = (shared_row + row_offset) * TILE_WIDTH + (shared_col + col_offset);
-        if (shared_offset >= 0 && shared_offset < TILE_WIDTH*TILE_WIDTH){
-          float pixel_value = (float)local_in[shared_offset];
-          float filter_value = d_filter[filter_offset]; 
-          blur_value = blur_value + pixel_value*filter_value;
-        }
-        filter_offset++;
-      }
-    }
-  }
-  __syncthreads();
-  if (global_col < cols && global_row < rows){
-    d_out[global_row * cols + global_col] = (unsigned char)blur_value;
-  }
-}
-*/
 
 /*
   Given an input RGBA image separate 
@@ -351,18 +212,15 @@ void your_gauss_blur(uchar4* d_imrgba, uchar4 *d_oimrgba, size_t rows, size_t co
         cudaDeviceSynchronize();
         checkCudaErrors(cudaGetLastError());
         
-        gaussianBlur_shared<<<gridSize, blockSize>>>(d_red, d_rblurred, rows, cols, d_filter, filterWidth);
-        //gaussianBlur_global<<<gridSize, blockSize>>>(d_red, d_rblurred, rows, cols, d_filter, filterWidth);
+        gaussianBlur_global<<<gridSize, blockSize>>>(d_red, d_rblurred, rows, cols, d_filter, filterWidth);
         cudaDeviceSynchronize();
         checkCudaErrors(cudaGetLastError());
 
-        gaussianBlur_shared<<<gridSize, blockSize>>>(d_green, d_gblurred, rows, cols, d_filter, filterWidth);
-        //gaussianBlur_global<<<gridSize, blockSize>>>(d_green, d_gblurred, rows, cols, d_filter, filterWidth);
+        gaussianBlur_global<<<gridSize, blockSize>>>(d_green, d_gblurred, rows, cols, d_filter, filterWidth);
         cudaDeviceSynchronize();
         checkCudaErrors(cudaGetLastError());
 
-        gaussianBlur_shared<<<gridSize, blockSize>>>(d_blue, d_bblurred, rows, cols, d_filter, filterWidth);
-        //gaussianBlur_global<<<gridSize, blockSize>>>(d_blue, d_bblurred, rows, cols, d_filter, filterWidth);
+        gaussianBlur_global<<<gridSize, blockSize>>>(d_blue, d_bblurred, rows, cols, d_filter, filterWidth);
         cudaDeviceSynchronize();
         checkCudaErrors(cudaGetLastError());
 
@@ -370,5 +228,37 @@ void your_gauss_blur(uchar4* d_imrgba, uchar4 *d_oimrgba, size_t rows, size_t co
 
         cudaDeviceSynchronize();
         checkCudaErrors(cudaGetLastError());   
+
+}
+
+
+void your_gauss_blur_shared(uchar4* d_imrgba, uchar4 *d_oimrgba, size_t rows, size_t cols, 
+  unsigned char *d_red, unsigned char *d_green, unsigned char *d_blue, 
+  unsigned char *d_rblurred, unsigned char *d_gblurred, unsigned char *d_bblurred,
+  float *d_filter,  int filterWidth){
+
+  dim3 blockSize(BLOCK,BLOCK,1); // For 2D image
+  dim3 gridSize((cols/BLOCK)+1,(rows/BLOCK)+1,1);
+
+  separateChannels<<<gridSize, blockSize>>>(d_imrgba, d_red, d_green, d_blue, rows, cols);
+  cudaDeviceSynchronize();
+  checkCudaErrors(cudaGetLastError());
+  
+  gaussianBlur_shared<<<gridSize, blockSize>>>(d_red, d_rblurred, rows, cols, d_filter, filterWidth);
+  cudaDeviceSynchronize();
+  checkCudaErrors(cudaGetLastError());
+
+  gaussianBlur_shared<<<gridSize, blockSize>>>(d_green, d_gblurred, rows, cols, d_filter, filterWidth);
+  cudaDeviceSynchronize();
+  checkCudaErrors(cudaGetLastError());
+
+  gaussianBlur_shared<<<gridSize, blockSize>>>(d_blue, d_bblurred, rows, cols, d_filter, filterWidth);
+  cudaDeviceSynchronize();
+  checkCudaErrors(cudaGetLastError());
+
+  recombineChannels<<<gridSize, blockSize>>>(d_rblurred, d_gblurred, d_bblurred, d_oimrgba, rows, cols);
+
+  cudaDeviceSynchronize();
+  checkCudaErrors(cudaGetLastError());   
 
 }
