@@ -78,7 +78,6 @@ void serialGaussianBlur(unsigned char *in, unsigned char *out, const int rows, c
     for (int row = 0; row < rows; row++){
         for (int col = 0; col < cols; col++){
             int offset = row*cols + col;
-
             
             float blur_value = 0;
 
@@ -102,12 +101,12 @@ void serialGaussianBlur(unsigned char *in, unsigned char *out, const int rows, c
                     filter_offset = filter_offset + 1;
                 }
             }
-            out[offset] = (unsigned char)blur_value;
             
-
-            //out[offset] = (unsigned char)in[offset];
+            out[offset] = (unsigned char)blur_value;
         }
     }
+
+
 }
 
 // Separate the input RGBA image into three channels R, G, B.
@@ -274,9 +273,7 @@ int main(int argc, char const *argv[]){
     checkCudaErrors(cudaMemcpy(d_filter, h_filter, sizeof(float)*fWidth*fWidth, cudaMemcpyHostToDevice));
 
     // kernel launch code
-    //your_gauss_blur(d_in_img, d_o_img, img.rows, img.cols, d_red, d_green, d_blue, d_red_blurred, d_green_blurred, d_blue_blurred, d_filter, fWidth);
-    your_gauss_blur_shared(d_in_img, d_o_img, img.rows, img.cols, d_red, d_green, d_blue, d_red_blurred, d_green_blurred, d_blue_blurred, d_filter, fWidth);
-
+    your_gauss_blur(d_in_img, d_o_img, img.rows, img.cols, d_red, d_green, d_blue, d_red_blurred, d_green_blurred, d_blue_blurred, d_filter, fWidth);
 
     cudaDeviceSynchronize();
     checkCudaErrors(cudaGetLastError());
