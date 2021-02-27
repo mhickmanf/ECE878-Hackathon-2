@@ -151,6 +151,27 @@ void gaussianBlur_shared(unsigned char *d_in, unsigned char *d_out,
 }
 
 
+
+/*
+Computes convolution along the row.
+ */
+ __global__ 
+ void gaussianBlur_separable_row(unsigned char *d_in, unsigned char *d_out, 
+  const int rows, const int cols, float *d_filter, const int filterWidth){
+
+}
+
+
+/*
+Computes convolution along the column.
+ */
+ __global__ 
+ void gaussianBlur_separable_column(unsigned char *d_in, unsigned char *d_out, 
+  const int rows, const int cols, float *d_filter, const int filterWidth){
+
+}
+
+
 /*
   Given an input RGBA image separate 
   that into appropriate rgba channels.
@@ -253,6 +274,68 @@ void your_gauss_blur_shared(uchar4* d_imrgba, uchar4 *d_oimrgba, size_t rows, si
   checkCudaErrors(cudaGetLastError());
 
   gaussianBlur_shared<<<gridSize, blockSize>>>(d_blue, d_bblurred, rows, cols, d_filter, filterWidth);
+  cudaDeviceSynchronize();
+  checkCudaErrors(cudaGetLastError());
+
+  recombineChannels<<<gridSize, blockSize>>>(d_rblurred, d_gblurred, d_bblurred, d_oimrgba, rows, cols);
+
+  cudaDeviceSynchronize();
+  checkCudaErrors(cudaGetLastError());   
+
+}
+
+void your_gauss_blur_separable_row(uchar4* d_imrgba, uchar4 *d_oimrgba, size_t rows, size_t cols, 
+  unsigned char *d_red, unsigned char *d_green, unsigned char *d_blue, 
+  unsigned char *d_rblurred, unsigned char *d_gblurred, unsigned char *d_bblurred,
+  float *d_filter,  int filterWidth){
+
+  dim3 blockSize(BLOCK,BLOCK,1); // For 2D image
+  dim3 gridSize((cols/BLOCK)+1,(rows/BLOCK)+1,1);
+
+  separateChannels<<<gridSize, blockSize>>>(d_imrgba, d_red, d_green, d_blue, rows, cols);
+  cudaDeviceSynchronize();
+  checkCudaErrors(cudaGetLastError());
+  
+  gaussianBlur_separable_row<<<gridSize, blockSize>>>(d_red, d_rblurred, rows, cols, d_filter, filterWidth);
+  cudaDeviceSynchronize();
+  checkCudaErrors(cudaGetLastError());
+
+  gaussianBlur_separable_row<<<gridSize, blockSize>>>(d_green, d_gblurred, rows, cols, d_filter, filterWidth);
+  cudaDeviceSynchronize();
+  checkCudaErrors(cudaGetLastError());
+
+  gaussianBlur_separable_row<<<gridSize, blockSize>>>(d_blue, d_bblurred, rows, cols, d_filter, filterWidth);
+  cudaDeviceSynchronize();
+  checkCudaErrors(cudaGetLastError());
+
+  recombineChannels<<<gridSize, blockSize>>>(d_rblurred, d_gblurred, d_bblurred, d_oimrgba, rows, cols);
+
+  cudaDeviceSynchronize();
+  checkCudaErrors(cudaGetLastError());   
+
+}
+
+void your_gauss_blur_separable_col(uchar4* d_imrgba, uchar4 *d_oimrgba, size_t rows, size_t cols, 
+  unsigned char *d_red, unsigned char *d_green, unsigned char *d_blue, 
+  unsigned char *d_rblurred, unsigned char *d_gblurred, unsigned char *d_bblurred,
+  float *d_filter,  int filterWidth){
+
+  dim3 blockSize(BLOCK,BLOCK,1); // For 2D image
+  dim3 gridSize((cols/BLOCK)+1,(rows/BLOCK)+1,1);
+
+  separateChannels<<<gridSize, blockSize>>>(d_imrgba, d_red, d_green, d_blue, rows, cols);
+  cudaDeviceSynchronize();
+  checkCudaErrors(cudaGetLastError());
+  
+  gaussianBlur_separable_column<<<gridSize, blockSize>>>(d_red, d_rblurred, rows, cols, d_filter, filterWidth);
+  cudaDeviceSynchronize();
+  checkCudaErrors(cudaGetLastError());
+
+  gaussianBlur_separable_column<<<gridSize, blockSize>>>(d_green, d_gblurred, rows, cols, d_filter, filterWidth);
+  cudaDeviceSynchronize();
+  checkCudaErrors(cudaGetLastError());
+
+  gaussianBlur_separable_column<<<gridSize, blockSize>>>(d_blue, d_bblurred, rows, cols, d_filter, filterWidth);
   cudaDeviceSynchronize();
   checkCudaErrors(cudaGetLastError());
 
