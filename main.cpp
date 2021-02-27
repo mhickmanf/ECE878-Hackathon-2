@@ -21,7 +21,7 @@
 void checkApproxResults(unsigned char *ref, unsigned char *gpu, size_t numElems){
 
     for (int i = 0; i < numElems; i++){
-        if (ref[i] - gpu[i] > 1e-5){
+        if (ref[i] - gpu[i] > 1){
             std::cerr << "Error at position " << i << "\n";
 
             std::cerr << "Reference:: " << std::setprecision(17) << +ref[i] << "\n";
@@ -274,8 +274,8 @@ int main(int argc, char const *argv[]){
     checkCudaErrors(cudaMemcpy(d_filter, h_filter, sizeof(float)*fWidth*fWidth, cudaMemcpyHostToDevice));
 
     // kernel launch code
-    your_gauss_blur(d_in_img, d_o_img, img.rows, img.cols, d_red, d_green, d_blue, d_red_blurred, d_green_blurred, d_blue_blurred, d_filter, fWidth);
-    //your_gauss_blur_shared(d_in_img, d_o_img, img.rows, img.cols, d_red, d_green, d_blue, d_red_blurred, d_green_blurred, d_blue_blurred, d_filter, fWidth);
+    //your_gauss_blur(d_in_img, d_o_img, img.rows, img.cols, d_red, d_green, d_blue, d_red_blurred, d_green_blurred, d_blue_blurred, d_filter, fWidth);
+    your_gauss_blur_shared(d_in_img, d_o_img, img.rows, img.cols, d_red, d_green, d_blue, d_red_blurred, d_green_blurred, d_blue_blurred, d_filter, fWidth);
 
 
     cudaDeviceSynchronize();
