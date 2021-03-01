@@ -71,10 +71,10 @@ void gaussianBlurSeparableRow(float *d_in, unsigned char *d_out,
 
     // calculate gaussian blur from filter
     int filter_offset = 0;
-    int i = 0;
+    int i = -(filterWidth/2);
     for (int j = -(filterWidth/2) ; j < filterWidth/2;j++){
       // check bounds
-      if ((i < rows) && (i >= 0)){
+      if ((j < cols) && (j >= 0)){
         int pixel_offset = (row+i)*cols + (j+col);
         float pixel_value = (float)d_in[pixel_offset];
         // get filter pixel
@@ -109,10 +109,10 @@ int filterRadius = (filterWidth-1)/2;
 
     // calculate gaussian blur from filter
     int filter_offset = 0;
-    int j = 0;
+    int j = -(filterWidth/2);
     for(int i = -(filterWidth/2) ; i < filterWidth/2;i++){
       // check bounds
-      if ((j < cols) && (j >= 0)){
+      if ((i < rows) && (i >= 0)){
 
         int pixel_offset = (row+i)*cols + (j+col);
         float pixel_value = (float)d_in[pixel_offset];
