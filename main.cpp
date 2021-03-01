@@ -187,6 +187,7 @@ int main(int argc, char const *argv[]){
     unsigned char *d_red_blurred, *d_green_blurred, *d_blue_blurred;
 
     float *h_filter, *d_filter;
+    float *partial_rsum, *partial_gsum, *partial_bsum;
     cv::Mat imrgba, o_img, ro_img;
 
     const int fWidth = 9;
@@ -246,6 +247,7 @@ int main(int argc, char const *argv[]){
     h_green_blurred = new unsigned char[numPixels];
     h_blue_blurred = new unsigned char[numPixels];
     
+    
     // allocate the memories for the device pointers
 
     // filter allocation
@@ -265,12 +267,17 @@ int main(int argc, char const *argv[]){
     checkCudaErrors(cudaMalloc((void**)&d_blue_blurred, sizeof(unsigned char)*numPixels));
     checkCudaErrors(cudaMalloc((void**)&d_filter, sizeof(float)*fWidth*fWidth));
     
+    checkCudaErrors(cudaMalloc((void**)&partial_rsum, sizeof(float)*numPixels));
+    checkCudaErrors(cudaMalloc((void**)&partial_gsum, sizeof(float)*numPixels));
+    checkCudaErrors(cudaMalloc((void**)&partial_bsum, sizeof(float)*numPixels));
+    
+    
     //checkCudaErrors(cudaMemcpy(d_in_img, h_imrgba, sizeof(uchar4)*numPixels, cudaMemcpyHostToDevice));
     checkCudaErrors(cudaMemcpy(d_in_img, h_in_img, sizeof(uchar4)*numPixels, cudaMemcpyHostToDevice));
     checkCudaErrors(cudaMemcpy(d_filter, h_filter, sizeof(float)*fWidth*fWidth, cudaMemcpyHostToDevice));
 
     // kernel launch code
-    your_gauss_blur(d_in_img, d_o_img, img.rows, img.cols, d_red, d_green, d_blue, d_red_blurred, d_green_blurred, d_blue_blurred, d_filter, fWidth);
+    your_gauss_blur(d_in_img, d_o_img, img.rows, img.cols, d_red, d_green, d_blue, d_red_blurred, d_green_blurred, d_blue_blurred, d_filter, fWidth, partial_rsum, partial_gsum, partial_bsum);
     //your_gauss_blur_shared(d_in_img, d_o_img, img.rows, img.cols, d_red, d_green, d_blue, d_red_blurred, d_green_blurred, d_blue_blurred, d_filter, fWidth);
 
 

@@ -78,7 +78,7 @@ void gaussianBlurSeparableRow(float *d_in, unsigned char *d_out,
         int pixel_offset = (row+i)*cols + (j+col);
         float pixel_value = (float)d_in[pixel_offset];
         // get filter pixel
-        float filter_value = d_filter[(i+(filterWidth/2))*filterWidth + (j+(filterWidth/2))];; 
+        float filter_value = d_filter[(i+(filterWidth/2))*filterWidth + (j+(filterWidth/2))];
         blur_value = blur_value + pixel_value*filter_value;
       }
       filter_offset = filter_offset + 1;
