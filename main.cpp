@@ -21,7 +21,7 @@
 void checkApproxResults(unsigned char *ref, unsigned char *gpu, size_t numElems){
 
     for (int i = 0; i < numElems; i++){
-        if (ref[i] - gpu[i] > 1e-5){
+        if (ref[i] - gpu[i] > 1){
             std::cerr << "Error at position " << i << "\n";
 
             std::cerr << "Reference:: " << std::setprecision(17) << +ref[i] << "\n";
