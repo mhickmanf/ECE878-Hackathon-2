@@ -64,26 +64,32 @@ void gaussianBlurSeparableRow(float *d_in, unsigned char *d_out,
 
 
 
-  __syncthreads();
+
   if(col<cols && row<rows) {
     int offset = row*cols + col;
     float blur_value = 0;
+
+    
+
 
     // calculate gaussian blur from filter
     int filter_offset = 0;
     int i = -(filterWidth/2);
     for (int j = -(filterWidth/2) ; j < filterWidth/2;j++){
       // check bounds
-      if ((j < cols) && (j >= 0)){
-        int pixel_offset = (row+i)*cols + (j+col);
-        float pixel_value = (float)d_in[pixel_offset];
+      if ((j+col < cols) && (j+col >= 0)){
+        int pixel_offset = (row*cols) + (j+col);
+        float pixel_value = d_in[pixel_offset];
+
         // get filter pixel
         float filter_value = d_filter[(i+(filterWidth/2))*filterWidth + (j+(filterWidth/2))];
+        
         blur_value = blur_value + pixel_value*filter_value;
       }
       filter_offset = filter_offset + 1;
     }
-    d_out[offset] = (unsigned char)blur_value;
+    //printf("%f ",blur_value);
+    d_out[offset] = (unsigned char)(blur_value*1000)+10;
     //d_out[offset] = (unsigned char)d_in[offset];
   }
 
@@ -112,20 +118,22 @@ int filterRadius = (filterWidth-1)/2;
     int j = -(filterWidth/2);
     for(int i = -(filterWidth/2) ; i < filterWidth/2;i++){
       // check bounds
-      if ((i < rows) && (i >= 0)){
+      if ((i+row < rows) && (i+row >= 0)){
 
-        int pixel_offset = (row+i)*cols + (j+col);
+        int pixel_offset = (row+i)*cols + (col);
         float pixel_value = (float)d_in[pixel_offset];
         // get filter pixel
         float filter_value = d_filter[(i+(filterWidth/2)) * filterWidth + (filterWidth/2 + j)];
         //float filter_value = d_filter[filter_offset]; 
         blur_value = blur_value + pixel_value*filter_value;
+
       }
       filter_offset = filter_offset + 1;
     }
     d_out[offset] = blur_value;
+
+    __syncthreads();
     //d_out[offset] = (float)d_in[offset];
-    //test
   }
 }
 
@@ -198,11 +206,15 @@ void your_gauss_blur(uchar4* d_imrgba, uchar4 *d_oimrgba, size_t rows, size_t co
         cudaDeviceSynchronize();
         checkCudaErrors(cudaGetLastError());
 
-        gaussianBlurSeparableRow<<<gridSize, blockSize>>>(partial_rsum, d_rblurred, rows, cols, d_filter, filterWidth);
+	      gaussianBlurSeparableColumn<<<gridSize, blockSize>>>(d_green, partial_gsum, rows, cols, d_filter, filterWidth);
         cudaDeviceSynchronize();
         checkCudaErrors(cudaGetLastError());
 
-	gaussianBlurSeparableColumn<<<gridSize, blockSize>>>(d_green, partial_gsum, rows, cols, d_filter, filterWidth);
+	      gaussianBlurSeparableColumn<<<gridSize, blockSize>>>(d_blue, partial_bsum, rows, cols, d_filter, filterWidth);
+        cudaDeviceSynchronize();
+        checkCudaErrors(cudaGetLastError());
+
+        gaussianBlurSeparableRow<<<gridSize, blockSize>>>(partial_rsum, d_rblurred, rows, cols, d_filter, filterWidth);
         cudaDeviceSynchronize();
         checkCudaErrors(cudaGetLastError());
 
@@ -210,9 +222,6 @@ void your_gauss_blur(uchar4* d_imrgba, uchar4 *d_oimrgba, size_t rows, size_t co
         cudaDeviceSynchronize();
         checkCudaErrors(cudaGetLastError());
 
-	gaussianBlurSeparableColumn<<<gridSize, blockSize>>>(d_blue, partial_bsum, rows, cols, d_filter, filterWidth);
-        cudaDeviceSynchronize();
-        checkCudaErrors(cudaGetLastError());
 
         gaussianBlurSeparableRow<<<gridSize, blockSize>>>(partial_bsum, d_bblurred, rows, cols, d_filter, filterWidth);
         cudaDeviceSynchronize();
