@@ -21,7 +21,7 @@
 void checkApproxResults(unsigned char *ref, unsigned char *gpu, size_t numElems){
 
     for (int i = 0; i < numElems; i++){
-        if (ref[i] - gpu[i] > 1){
+        if (ref[i] - gpu[i] > 1e-5){
             std::cerr << "Error at position " << i << "\n";
 
             std::cerr << "Reference:: " << std::setprecision(17) << +ref[i] << "\n";
@@ -78,7 +78,7 @@ void serialGaussianBlur(unsigned char *in, unsigned char *out, const int rows, c
     for (int row = 0; row < rows; row++){
         for (int col = 0; col < cols; col++){
             int offset = row*cols + col;
-            
+
             float blur_value = 0;
 
             // calculate gaussian blur from filter
@@ -95,18 +95,13 @@ void serialGaussianBlur(unsigned char *in, unsigned char *out, const int rows, c
                         // get filter pixel
                         float filter_value = filter[filter_offset];                        
                         blur_value = blur_value + pixel_value*filter_value;
-
                     }
-
                     filter_offset = filter_offset + 1;
                 }
             }
-            
             out[offset] = (unsigned char)blur_value;
         }
     }
-
-
 }
 
 // Separate the input RGBA image into three channels R, G, B.
@@ -146,25 +141,35 @@ void serial_gauss_blur(uchar4* imrgba, uchar4 *oimrgba, size_t rows, size_t cols
     serialSeparateChannels(imrgba, red, green, blue, rows, cols);
     auto serial_end = std::chrono::steady_clock::now();
     std::chrono::duration<double> serial_elapsed_seconds = serial_end-serial_start;
-    std::cout << "serial elapsed time: Separate Channels: " << serial_elapsed_seconds.count()*(1e+6) << " us\n";
+    std::cout << "serial elapsed time: Separate Channels: " << serial_elapsed_seconds.count()*(1e+6) << "us\n";
 
     // gauss r
     serial_start = std::chrono::steady_clock::now();
     serialGaussianBlur(red, rblurred, rows, cols, filter, filterWidth);
+    serial_end = std::chrono::steady_clock::now();
+    serial_elapsed_seconds = serial_end-serial_start;
+    std::cout << "serial elapsed time: Gaussian Blur R:  " << serial_elapsed_seconds.count()*(1e+6) << "us\n";
+
     // g
+    serial_start = std::chrono::steady_clock::now();
     serialGaussianBlur(green, gblurred, rows, cols, filter, filterWidth);
+    serial_end = std::chrono::steady_clock::now();
+    serial_elapsed_seconds = serial_end-serial_start;
+    std::cout << "serial elapsed time: Gaussian Blur G:  " << serial_elapsed_seconds.count()*(1e+6) << "us\n";
+
     //b
+    serial_start = std::chrono::steady_clock::now();
     serialGaussianBlur(blue, bblurred, rows, cols, filter, filterWidth);
     serial_end = std::chrono::steady_clock::now();
     serial_elapsed_seconds = serial_end-serial_start;
-    std::cout << "serial elapsed time: Avg. Gaussian Blur:  " << (serial_elapsed_seconds.count()/3)*(1e+6) << " us\n";
+    std::cout << "serial elapsed time: Gaussian Blur B:  " << serial_elapsed_seconds.count()*(1e+6) << "us\n";
     
     // gather
     serial_start = std::chrono::steady_clock::now();
     serialRecombineChannels(rblurred, gblurred, bblurred, oimrgba, rows, cols);
     serial_end = std::chrono::steady_clock::now();
     serial_elapsed_seconds = serial_end-serial_start;
-    std::cout << "serial elapsed time: Gather Channels:  " << serial_elapsed_seconds.count()*(1e+6) << " us\n";
+    std::cout << "serial elapsed time: Gather Channels:  " << serial_elapsed_seconds.count()*(1e+6) << "us\n";
 
 }
 
@@ -172,14 +177,16 @@ int main(int argc, char const *argv[]){
 
     uchar4 *h_in_img, *h_o_img; // pointers to the actual image input and output pointers
     uchar4 *d_in_img, *d_o_img;
-    uchar4 *r_o_img; // added by me
+    uchar4 *r_o_img;
 
     unsigned char *h_red, *h_green, *h_blue;
     unsigned char *d_red, *d_green, *d_blue;
-    unsigned char *h_red_blurred, *h_green_blurred, *h_blue_blurred; // added by me
+    unsigned char *h_red_blurred, *h_green_blurred, *h_blue_blurred;
     unsigned char *d_red_blurred, *d_green_blurred, *d_blue_blurred;
+    float *temp;
 
     float *h_filter, *d_filter;
+    float *partial_rsum, *partial_gsum, *partial_bsum;
     cv::Mat imrgba, o_img, ro_img;
 
     const int fWidth = 9;
@@ -228,13 +235,13 @@ int main(int argc, char const *argv[]){
     h_o_img = (uchar4 *)o_img.ptr<unsigned char>(0);
     r_o_img = (uchar4 *)ro_img.ptr<unsigned char>(0);
 
-    // below added by me
     h_red = new unsigned char[numPixels];
     h_green = new unsigned char[numPixels];
     h_blue = new unsigned char[numPixels];
     h_red_blurred = new unsigned char[numPixels];
     h_green_blurred = new unsigned char[numPixels];
     h_blue_blurred = new unsigned char[numPixels];
+    
     
     // allocate the memories for the device pointers
 
@@ -255,16 +262,21 @@ int main(int argc, char const *argv[]){
     checkCudaErrors(cudaMalloc((void**)&d_blue_blurred, sizeof(unsigned char)*numPixels));
     checkCudaErrors(cudaMalloc((void**)&d_filter, sizeof(float)*fWidth*fWidth));
     
+    checkCudaErrors(cudaMalloc((void**)&partial_rsum, sizeof(float)*numPixels));
+    checkCudaErrors(cudaMalloc((void**)&partial_gsum, sizeof(float)*numPixels));
+    checkCudaErrors(cudaMalloc((void**)&partial_bsum, sizeof(float)*numPixels));
+    
     checkCudaErrors(cudaMemcpy(d_in_img, h_in_img, sizeof(uchar4)*numPixels, cudaMemcpyHostToDevice));
     checkCudaErrors(cudaMemcpy(d_filter, h_filter, sizeof(float)*fWidth*fWidth, cudaMemcpyHostToDevice));
 
+    checkCudaErrors(cudaMalloc((void**)&temp, sizeof(float)*numPixels));
+    checkCudaErrors(cudaMemset(temp, 0, sizeof(float)*numPixels));
+
     // kernel launch code
-    //your_gauss_blur(d_in_img, d_o_img, img.rows, img.cols, d_red, d_green, d_blue, d_red_blurred, d_green_blurred, d_blue_blurred, d_filter, fWidth);
-    your_gauss_blur_shared(d_in_img, d_o_img, img.rows, img.cols, d_red, d_green, d_blue, d_red_blurred, d_green_blurred, d_blue_blurred, d_filter, fWidth);
-    //your_gauss_blur_separable_row(d_in_img, d_o_img, img.rows, img.cols, d_red, d_green, d_blue, d_red_blurred, d_green_blurred, d_blue_blurred, d_filter, fWidth);
-    //your_gauss_blur_separable_col(d_in_img, d_o_img, img.rows, img.cols, d_red, d_green, d_blue, d_red_blurred, d_green_blurred, d_blue_blurred, d_filter, fWidth);
-
-
+    //your_gauss_blur(d_in_img, d_o_img, img.rows, img.cols, d_red, d_green, d_blue, d_red_blurred, d_green_blurred, d_blue_blurred, d_filter, fWidth);    
+    //your_gauss_blur_shared(d_in_img, d_o_img, img.rows, img.cols, d_red, d_green, d_blue, d_red_blurred, d_green_blurred, d_blue_blurred, d_filter, fWidth);
+    your_gauss_blur_separable_row_megan(d_in_img, d_o_img, img.rows, img.cols, d_red, d_green, d_blue, d_red_blurred, d_green_blurred, d_blue_blurred, d_filter, fWidth, temp);
+    //your_gauss_blur_separable_row_max(d_in_img, d_o_img, img.rows, img.cols, d_red, d_green, d_blue, d_red_blurred, d_green_blurred, d_blue_blurred, d_filter, fWidth, partial_rsum, partial_gsum, partial_bsum);
 
     cudaDeviceSynchronize();
     checkCudaErrors(cudaGetLastError());
@@ -293,6 +305,7 @@ int main(int argc, char const *argv[]){
     }
 
     // check if the caclulation was correct to a degree of tolerance
+
     checkResult(reference, outfile, 1e-5);
 
     // free any necessary memory.
@@ -304,6 +317,7 @@ int main(int argc, char const *argv[]){
     cudaFree(d_red_blurred);
     cudaFree(d_green_blurred);
     cudaFree(d_blue_blurred);
+    cudaFree(temp);
     
     delete[] h_filter;
     delete[] h_red;
