@@ -1,6 +1,6 @@
 #include "./gaussian_kernel.h"
 
-#define BLOCK 32
+#define BLOCK 16
 #define TILE_WIDTH 40 // BLOCK + (filterWidth - 1)
 
 /*
@@ -69,9 +69,7 @@ void gaussianBlurSeparableRow(float *d_in, unsigned char *d_out,
     int offset = row*cols + col;
     float blur_value = 0;
 
-    
-
-
+  
     // calculate gaussian blur from filter
     int filter_offset = 0;
     int i = -(filterWidth/2);
@@ -89,7 +87,8 @@ void gaussianBlurSeparableRow(float *d_in, unsigned char *d_out,
       filter_offset = filter_offset + 1;
     }
     //printf("%f ",blur_value);
-    d_out[offset] = (unsigned char)(blur_value*1000)+10;
+    __syncthreads();
+    d_out[offset] = (unsigned char)(blur_value*1000)+20;
     //d_out[offset] = (unsigned char)d_in[offset];
   }
 
@@ -130,9 +129,10 @@ int filterRadius = (filterWidth-1)/2;
       }
       filter_offset = filter_offset + 1;
     }
+    __syncthreads();
     d_out[offset] = blur_value;
 
-    __syncthreads();
+    //__syncthreads();
     //d_out[offset] = (float)d_in[offset];
   }
 }
