@@ -431,10 +431,12 @@ void your_gauss_blur_shared(uchar4* d_imrgba, uchar4 *d_oimrgba, size_t rows, si
   Seperable Row Version 1 - Max
 */
 
+
+
 void your_gauss_blur_separable_row_max(uchar4* d_imrgba, uchar4 *d_oimrgba, size_t rows, size_t cols, 
   unsigned char *d_red, unsigned char *d_green, unsigned char *d_blue, 
-  unsigned char *d_rblurred, unsigned char *d_gblurred, unsigned char *d_bblurred,  
-  float *d_filter, int filterWidth, float* partial_rsum, float* partial_gsum, float* partial_bsum){
+  unsigned char *d_rblurred, unsigned char *d_gblurred, unsigned char *d_bblurred,
+  float *d_filter,  int filterWidth,  float *partial_rsum, float *partial_gsum, float *partial_bsum){
 
   dim3 blockSize(BLOCK,BLOCK,1); // For 2D image
   dim3 gridSize((cols/BLOCK)+1,(rows/BLOCK)+1,1);
@@ -443,30 +445,35 @@ void your_gauss_blur_separable_row_max(uchar4* d_imrgba, uchar4 *d_oimrgba, size
   cudaDeviceSynchronize();
   checkCudaErrors(cudaGetLastError());
 
-  gaussianBlurSeparableColumn<<<gridSize, blockSize>>>(d_red, partial_sum, rows, cols, d_filter, filterWidth);
+  gaussianBlurSeparableColumn<<<gridSize, blockSize>>>(d_red, partial_rsum, rows, cols, d_filter, filterWidth);
   cudaDeviceSynchronize();
   checkCudaErrors(cudaGetLastError());
 
-  gaussianBlurSeparableRow<<<gridSize, blockSize>>>(partial_sum, d_rblurred, rows, cols, d_filter, filterWidth);
+  gaussianBlurSeparableColumn<<<gridSize, blockSize>>>(d_green, partial_gsum, rows, cols, d_filter, filterWidth);
   cudaDeviceSynchronize();
   checkCudaErrors(cudaGetLastError());
 
-  gaussianBlurSeparableColumn<<<gridSize, blockSize>>>(d_green, partial_sum, rows, cols, d_filter, filterWidth);
+  gaussianBlurSeparableColumn<<<gridSize, blockSize>>>(d_blue, partial_bsum, rows, cols, d_filter, filterWidth);
   cudaDeviceSynchronize();
   checkCudaErrors(cudaGetLastError());
 
-  gaussianBlurSeparableRow<<<gridSize, blockSize>>>(partial_sum, d_gblurred, rows, cols, d_filter, filterWidth);
+  gaussianBlurSeparableRow<<<gridSize, blockSize>>>(partial_rsum, d_rblurred, rows, cols, d_filter, filterWidth);
   cudaDeviceSynchronize();
   checkCudaErrors(cudaGetLastError());
 
-  gaussianBlurSeparableColumn<<<gridSize, blockSize>>>(d_blue, partial_sum, rows, cols, d_filter, filterWidth);
+  gaussianBlurSeparableRow<<<gridSize, blockSize>>>(partial_gsum, d_gblurred, rows, cols, d_filter, filterWidth);
   cudaDeviceSynchronize();
   checkCudaErrors(cudaGetLastError());
 
-  gaussianBlurSeparableRow<<<gridSize, blockSize>>>(partial_sum, d_bblurred, rows, cols, d_filter, filterWidth);
+
+  gaussianBlurSeparableRow<<<gridSize, blockSize>>>(partial_bsum, d_bblurred, rows, cols, d_filter, filterWidth);
   cudaDeviceSynchronize();
   checkCudaErrors(cudaGetLastError());
-
+/*
+  gaussianBlur_global<<<gridSize, blockSize>>>(d_blue, d_bblurred, rows, cols, d_filter, filterWidth);
+  cudaDeviceSynchronize();
+  checkCudaErrors(cudaGetLastError());
+*/
   recombineChannels<<<gridSize, blockSize>>>(d_rblurred, d_gblurred, d_bblurred, d_oimrgba, rows, cols);
   cudaDeviceSynchronize();
   checkCudaErrors(cudaGetLastError());
