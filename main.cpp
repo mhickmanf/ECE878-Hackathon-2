@@ -273,9 +273,9 @@ int main(int argc, char const *argv[]){
     checkCudaErrors(cudaMemset(temp, 0, sizeof(float)*numPixels));
 
     // kernel launch code
-    //your_gauss_blur(d_in_img, d_o_img, img.rows, img.cols, d_red, d_green, d_blue, d_red_blurred, d_green_blurred, d_blue_blurred, d_filter, fWidth);    
+    your_gauss_blur(d_in_img, d_o_img, img.rows, img.cols, d_red, d_green, d_blue, d_red_blurred, d_green_blurred, d_blue_blurred, d_filter, fWidth);    
     //your_gauss_blur_shared(d_in_img, d_o_img, img.rows, img.cols, d_red, d_green, d_blue, d_red_blurred, d_green_blurred, d_blue_blurred, d_filter, fWidth);
-    your_gauss_blur_separable_row_megan(d_in_img, d_o_img, img.rows, img.cols, d_red, d_green, d_blue, d_red_blurred, d_green_blurred, d_blue_blurred, d_filter, fWidth, temp);
+    //your_gauss_blur_separable_row_megan(d_in_img, d_o_img, img.rows, img.cols, d_red, d_green, d_blue, d_red_blurred, d_green_blurred, d_blue_blurred, d_filter, fWidth, temp);
     //your_gauss_blur_separable_row_max(d_in_img, d_o_img, img.rows, img.cols, d_red, d_green, d_blue, d_red_blurred, d_green_blurred, d_blue_blurred, d_filter, fWidth, partial_rsum, partial_gsum, partial_bsum);
 
     cudaDeviceSynchronize();

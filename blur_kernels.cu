@@ -1,7 +1,7 @@
 #include "./gaussian_kernel.h"
 
-#define BLOCK 32
-#define TILE_WIDTH 40 // BLOCK + (filterWidth - 1)
+#define BLOCK 8
+#define TILE_WIDTH 16 // BLOCK + (filterWidth - 1)
 
 /*
 The actual gaussian blur kernel to be implemented by 
@@ -153,17 +153,13 @@ void gaussianBlur_shared(unsigned char *d_in, unsigned char *d_out,
 
 
 /*
-Computes convolution along the row, using shared memory.  Megan's Version.
+Computes convolution along the row, then uses atomicAdd to do along the columns.
  */
  __global__ 
  void gaussianBlur_separable_row(unsigned char *d_in, unsigned char *d_out, 
   const int rows, const int cols, float *d_filter, const int filterWidth, float *temp){
 
   int filterRadius = (filterWidth-1)/2;
-
-  // TODO implement shared memory
-  //shared memory array
-  //__shared__ unsigned char local_in[TILE_WIDTH_ROW];
 
   // get current pixel at (col, row)
   int col=blockIdx.x*blockDim.x+threadIdx.x;
@@ -172,15 +168,8 @@ Computes convolution along the row, using shared memory.  Megan's Version.
 
   float blur_value = 0;
   if(col<cols && row<rows) {
-    //int offset = row*cols + col;
-    
-    // calculate gaussian blur from filter
-    //int filter_offset = 0;
     int filter_offset = filter_row*filterWidth;
-    //for (int i = row - filterRadius; i <= row + filterRadius; i++){
     for (int j = col - filterRadius; j <= col + filterRadius; j++){
-
-      // check bounds
       if ((j < cols) && (j >= 0)){
         int pixel_offset = row*cols + j;
         float pixel_value = (float)d_in[pixel_offset];
@@ -189,11 +178,9 @@ Computes convolution along the row, using shared memory.  Megan's Version.
         blur_value = blur_value + pixel_value*filter_value;
       }
       filter_offset = filter_offset + 1;
-      //}
     }
   }
 
-  //__syncthreads(); // if using shared memory, we have to sync threads here
   if(col<cols && row<rows) {
     int global_row_offset = row + filterRadius - filter_row;
     int global_col_offset = col;
@@ -205,7 +192,7 @@ Computes convolution along the row, using shared memory.  Megan's Version.
 }
 
 /* 
-  Function used with gaussianBlur_separable_row_megan.
+  Function used with gaussianBlur_separable_row.
   In order to use atomicAdd, inputs must be float arrays.
   Use this function to convert temporary float array back to uchar
 */
@@ -226,7 +213,7 @@ __global__
 
 
 /*
-  Computes the convolution along the row. Max's Version.
+  Computes the convolution along the row.
 */
 __global__ 
 void gaussianBlurSeparableRow(float *d_in, unsigned char *d_out, 
@@ -265,7 +252,7 @@ void gaussianBlurSeparableRow(float *d_in, unsigned char *d_out,
 }
 
 /*
-  Computes the convolution along the column. Max's Version.
+  Computes the convolution along the column.
 */
 __global__ 
 void gaussianBlurSeparableColumn(unsigned char *d_in, float *d_out, 
@@ -304,10 +291,6 @@ void gaussianBlurSeparableColumn(unsigned char *d_in, float *d_out,
     //d_out[offset] = (float)d_in[offset];
   }
 }
-
-
-
-
 
 
 /*
